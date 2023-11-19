@@ -855,13 +855,6 @@ function HCOMP:Statement() local TOKEN,TOKENSET = self.TOKEN,self.TOKENSET
           end
         if self.TokenType == TOKEN.IDENT then
           if self.RegisterIdentities[self.TokenData] then
-            -- Don't error on catching a variable being used near a zap/preserve
-            if self:MatchToken(TOKENSET.OPERATORS) then
-              -- move back 2 tokens and then re-parse this
-              self:PreviousToken()
-              self:PreviousToken()
-              return self:Statement()
-            end
             if tokenType == TOKEN.PRESERVE then
               self:Error("Trying to preserve a register variable")
             end
@@ -874,18 +867,10 @@ function HCOMP:Statement() local TOKEN,TOKENSET = self.TOKEN,self.TOKENSET
               self:Error("Cannot zap ranges using register variables")
             end
           else
-            -- Don't error on catching a variable being used near a zap/preserve
-            if self:MatchToken(TOKEN.DCOLON) or self:MatchToken(TOKENSET.OPERATORS) then
-              -- move back 2 tokens and then re-parse this
-              self:PreviousToken() 
-              self:PreviousToken()
-              return self:Statement()
-            else
-              if tokenType == TOKEN.PRESERVE then
-                self:Error("Trying to preserve a variable")
-              end
-              self:Error("Trying to zap a non register variable")
+            if tokenType == TOKEN.PRESERVE then
+              self:Error("Trying to preserve a variable")
             end
+            self:Error("Trying to zap a non register variable")
           end
         end
         if self.TokenType == TOKEN.REGISTER then
