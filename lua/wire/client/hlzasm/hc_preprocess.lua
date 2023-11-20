@@ -109,7 +109,7 @@ function HCOMP:ParsePreprocessMacro(lineText,macroPosition)
           macroPosition.Line,macroPosition.Col,macroPosition.File)
       end
 
-      self.Defines[string.upper(pragmaCommand)] = ""
+      self.Defines[string.upper(pragmaCommand)] = { MacroValue = "" }
       table.insert(self.SearchPaths,"lib\\"..string.lower(pragmaCommand))
     elseif pragmaName == "cpuname" then
       CPULib.CPUName = pragmaCommand
@@ -179,7 +179,29 @@ function HCOMP:ParsePreprocessMacro(lineText,macroPosition)
       self:Error("Bad idea to redefine numbers",
         macroPosition.Line,macroPosition.Col,macroPosition.File)
     end
-    self.Defines[defineName] = defineValue
+    self.Defines[defineName] = { MacroValue = defineValue }
+  elseif macroName == "macro" then -- #macro (name) (argcount) (func code)
+    local macroFuncName = trimString(string.sub(macroParameters,1,(string.find(macroParameters," ") or 0)-1))
+    local macroFuncArgs = string.sub(macroParameters,(string.find(macroParameters," ") or 0)+1)
+    local macroFuncArgCount = tonumber(string.match(macroFuncArgs,"(%d*) "))
+    if not macroFuncArgCount then
+      self:Error("Need number of args for macro!",
+      macroPosition.Line,macroPosition.Col,macroPosition.File)
+    end
+    -- advance one space to the code
+    local macroFuncCode = string.sub(macroFuncArgs,(string.find(macroFuncArgs," ") or 0)+1)
+    macroFuncCode = string.gsub(macroFuncCode,"\\n","\n") -- Replace \\n with newlines, allow user control of whether or not they want to newline space these
+    if tonumber(macroName) then
+      self:Error("Bad idea to redefine numbers",
+        macroPosition.Line,macroPosition.Col,macroPosition.File)
+    end
+    self.Defines[macroFuncName] = { Macro = true, MacroValue = "/* MACRO "..macroFuncName.." */"}
+    if self.Macros[macroFuncName] then
+      self.Macros[macroFuncName][macroFuncArgCount] = macroFuncCode
+    else
+      self.Macros[macroFuncName] = {}
+      self.Macros[macroFuncName][macroFuncArgCount] = macroFuncCode
+    end
   elseif macroName == "undef" then -- #undef
     local defineName = trimString(string.sub(macroParameters,1,(string.find(macroParameters," ") or 0)-1))
     if tonumber(defineName) then
