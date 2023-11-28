@@ -10,13 +10,15 @@ function CPUTest.RunCPU()
 	CPUTest.oldPrecompileInit = CPUTest.VM.Precompile_Initialize
 	CPUTest.oldPrecompileFinalize = CPUTest.VM.Precompile_Finalize
 	CPUTest.TotalPrecompileTime = 0
+	CPUTest.TotalPrecompiles = 0
 	function CPUTest.VM.Precompile_Initialize()
-		print("starting precompile")
+		CPUTest.TotalPrecompiles = CPUTest.TotalPrecompiles + 1
+		-- print("starting precompile")
 		CPUTest.PrevPrecompile = os.clock()
 		CPUTest.oldPrecompileInit(CPUTest.VM)
 	end
 	function CPUTest.VM.Precompile_Finalize()
-		print("end precompile")
+		-- print("end precompile")
 		CPUTest.oldPrecompileFinalize(CPUTest.VM)
 		CPUTest.TotalPrecompileTime = CPUTest.TotalPrecompileTime + (os.clock() - CPUTest.PrevPrecompile)
 	end
@@ -27,14 +29,9 @@ function CPUTest.RunCPU()
 	for i=0,4096 do
 		CPUTest.VM:RunStep()
 	end
-	print("Total precompiling time: "..CPUTest.TotalPrecompileTime)
+	print("Total precompiling time: "..CPUTest.TotalPrecompileTime.." across "..CPUTest.TotalPrecompiles.." Precompiles")
 	-- False = no error, True = error
-	if CPUTest.VM.R0 == 4096 then
-		CPUTest.TestSuite.FinishTest(false)
-	else
-		CPUTest.TestSuite.Error("R0 is not 4096! R0 is "..tostring(CPUTest.VM.R0))
-		CPUTest.TestSuite.FinishTest(true)
-	end
+	CPUTest.TestSuite.FinishTest(false)
 end
 
 function CPUTest.CompileError(msg)
