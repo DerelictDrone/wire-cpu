@@ -66,9 +66,9 @@ if CLIENT or TESTING then
     CPULib.Debugger.PositionByPointer = {}
     CPULib.Debugger.PointersByLine = {}
     CPULib.CPUName = nil
+    CPULib.Warnings = HCOMP:StartCompile(source,fileName or "source",CPULib.OnWriteByte,nil)
 
     -- Start compiling the sourcecode
-    HCOMP:StartCompile(source,fileName or "source",CPULib.OnWriteByte,nil)
     HCOMP.Settings.CurrentPlatform = targetPlatform or "CPU"
     CPULib.print("=== HL-ZASM High Level Assembly Compiler Output ==")
 
@@ -113,8 +113,12 @@ if CLIENT or TESTING then
   -- Request validating the code
   function CPULib.Validate(editor,source,fileName)
     CPULib.Compile(source,fileName,
-      function()
+      function(warnings)
+        if #warnings > 0 then
+        editor.C.Val:Update(nil,warnings,"   "..#warnings.." Warnings, with "..(HCOMP.WritePointer or "?").." bytes compiled.", Color(163, 130, 64, 255))
+        else
         editor.C.Val:Update(nil, nil, "   Success, "..(HCOMP.WritePointer or "?").." bytes compiled.", Color(50, 128, 20))
+        end
       end,
       function(error,errorPos)
         local issue = (error or "unknown error")
@@ -164,7 +168,7 @@ if CLIENT or TESTING then
           CPULib.Debugger.PositionByPointer = HCOMP.DebugInfo.PositionByPointer
           CPULib.Debugger.PointersByLine = HCOMP.DebugInfo.PointersByLine
 
-          CPULib.SuccessCallback()
+          CPULib.SuccessCallback(CPULib.Warnings)
         end
         timer.Remove("cpulib_compile")
         CPULib.Compiling = false

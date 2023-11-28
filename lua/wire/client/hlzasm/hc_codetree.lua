@@ -210,6 +210,13 @@ function HCOMP:ReadOperandFromMemory(operands,index)
         operands[index] = { MemoryRegister = operands[index].MemoryPointer.Register, Temporary = operands[index].MemoryPointer.Temporary }
         return operands[index].Register
       elseif operands[index].MemoryPointer.Constant then
+        -- Don't decay a label constant expression into an unusable memory address if possible
+        for _,item in pairs(operands[index].MemoryPointer.Constant) do
+          if item.Type == self.TOKEN.IDENT then
+            operands[index] = { MemoryPointer = operands[index].MemoryPointer.Constant }
+            return nil
+          end
+        end
         operands[index] = { Memory = operands[index].MemoryPointer.Constant }
         return nil
       else
@@ -396,7 +403,12 @@ function HCOMP:GenerateLeaf(leaf,needResult)
 
       -- Make register operand temporary if requested
       if genOperands[i].ForceTemporary then
-        local initReg = genOperands[i].Register
+        local initReg
+        if genOperands[i].Register then
+          initReg = genOperands[i].Register
+        elseif genOperands[i].MemoryRegister then
+          initReg = genOperands[i].MemoryRegister
+        end
         genOperands[i].ForceTemporary = false
 
         if self.RegisterBusy[initReg] then
