@@ -548,14 +548,17 @@ ZVM.OpcodeTable[78] = function(self)  --MCOPY
     self:Dyn_EmitInterruptCheck()
     self:Dyn_Emit("VM:WriteCell(EDI,VAL)")
     self:Dyn_EmitInterruptCheck()
+    -- The code in the QuotaOnlyCode block only executes if we've hit quota.
     self:Dyn_BeginQuotaOnlyCode()
         self:Dyn_Emit("VM.MCOPYWrapUpCount = math.Clamp($1,0,8192)-i")
     self:Dyn_EndQuotaOnlyCode()
     self:Dyn_Emit("EDI = EDI + 1")
     self:Dyn_Emit("ESI = ESI + 1")
+    -- The code in the QuotaInterrupt block sets up a function to run and
+    -- handle the memory copy across multiple frames, to prevent FPS drops.
     self:Dyn_StartQuotaInterrupt()
         self:Dyn_Emit("$L VAL")
-        self:Dyn_Emit("for i = 1, math.min(4096,VM.MCOPYWrapUpCount) do")
+        self:Dyn_Emit("for i = 1, math.min(8192,VM.MCOPYWrapUpCount) do")
           self:Dyn_Emit("VAL = VM:ReadCell(ESI)")
           self:Dyn_EmitInterruptCheck()
           self:Dyn_Emit("VM:WriteCell(EDI,VAL)")
@@ -568,11 +571,11 @@ ZVM.OpcodeTable[78] = function(self)  --MCOPY
             self:Dyn_Emit("return")
           self:Dyn_EndQuotaOnlyCode()
         self:Dyn_Emit("end")
-        self:Dyn_Emit("if VM.MCOPYWrapUpCount <= 4096 then")
+        self:Dyn_Emit("if VM.MCOPYWrapUpCount <= 8192 then")
           self:Dyn_Emit("VM.MCOPYWrapUpCount = nil")
           self:Dyn_Emit("VM.QuotaOverrunFunc = nil")
           self:Dyn_Emit("else")
-          self:Dyn_Emit("VM.MCOPYWrapUpCount = VM.MCOPYWrapUpCount - 4096")
+          self:Dyn_Emit("VM.MCOPYWrapUpCount = VM.MCOPYWrapUpCount - 8192")
         self:Dyn_Emit("end")
     self:Dyn_EndQuotaInterrupt()
   self:Dyn_Emit("end")
@@ -1256,6 +1259,15 @@ ZVM.OpcodeTable[151] = function(self) -- CLERR
     self:Dyn_Emit("VM:SignalError(0)")
 end
 
+ZVM.OpcodeTable[152] = function(self) -- QUOCMP
+  self:Dyn_Emit("VM.CMPR = VM.QUOFLAG")
+  self:Dyn_Emit("VM.QUOFLAG = 0")
+end
+
+ZVM.OpcodeTable[153] = function(self) -- QUOTIMER
+  self:Dyn_EmitOperand("VM.LASTQUO")
+end
+
 --------------------------------------------------------------------------------
 ZVM.OpcodeTable[250] = function(self)  --VADD
   local seg1code = self.EmitOperandSegment[1] and "0" or "VM.DS"
@@ -1601,9 +1613,9 @@ end
 ZVM.OpcodeTable[267] = function(self)   --MLOOKAT
   local seg1code = self.EmitOperandSegment[1] and "0" or "VM.DS"
   local seg2code = self.EmitOperandSegment[2] and "0" or "VM.DS"
-  self:Dyn_Emit("$L EYE = VM:ReadVector3f($2 + VM."..(self.EmitOperandSegment[2] or "DS").."+0)")
-  self:Dyn_Emit("$L CENTER = VM:ReadVector3f($2 + VM."..(self.EmitOperandSegment[2] or "DS").."+3)")
-  self:Dyn_Emit("$L UP = VM:ReadVector3f($2 + VM."..(self.EmitOperandSegment[2] or "DS").."+6)")
+  self:Dyn_Emit("$L EYE = VM:ReadVector3f($2 + %s+0)",seg2code)
+  self:Dyn_Emit("$L CENTER = VM:ReadVector3f($2 + %s+3)",seg2code)
+  self:Dyn_Emit("$L UP = VM:ReadVector3f($2 + %s+6)",seg2code)
   self:Dyn_EmitInterruptCheck()
 
   self:Dyn_Emit("$L X = { 0, 0, 0 }")
